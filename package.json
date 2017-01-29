@@ -1,0 +1,22 @@
+{
+  "name": "phoenix",
+  "version": "0.0.0",
+  "description": "Stable connect to ws server",
+  "main": "app/phoenix.js",
+  "scripts": {
+    "test:func": "node ./testers/test-func.js",
+    "lint": "eslint ./app",
+    "precommit": "lint-staged"
+  },
+  "repository": "git@github.com:games4nerds/phoenix.git",
+  "author": "games4nerds",
+  "license": "LGPL-3.0",
+  "devDependencies": {
+    "eslint": "^3.14.1",
+    "eslint-config-airbnb-base": "^11.0.1",
+    "eslint-plugin-import": "^2.2.0",
+    "husky": "^0.13.1",
+    "lint-staged": "^3.2.8",
+    "uws": "^0.12.0"
+  }
+}
