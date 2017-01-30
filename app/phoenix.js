@@ -1,3 +1,4 @@
+// TODO: think about EventEmitter as a dependency for better in-browser usage
 const EventEmitter = require('events');
 
 function onConnectFail(socket, callback) {
@@ -63,7 +64,7 @@ function listenToClient(client, emitter, reborn) {
     };
 }
 
-exports.serverPhoenix = function serverPhoenix(Client, options) {
+module.exports = function (Client, options) {
     if (!options || !options.uri || typeof Client !== 'function') {
         throw new Error('Invalid options; At least client and uri should be provided');
     }

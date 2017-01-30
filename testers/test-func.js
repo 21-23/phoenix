@@ -1,8 +1,8 @@
 const WebSocketClient = require('uws'); // eslint-disable-line import/no-extraneous-dependencies
 
-const { serverPhoenix } = require('../app/phoenix');
+const createPhoenix = require('../app/phoenix');
 
-const phoenix = serverPhoenix(WebSocketClient, { uri: 'ws://localhost:8090/', timeout: 3000 });
+const phoenix = createPhoenix(WebSocketClient, { uri: 'ws://localhost:8090/', timeout: 3000 });
 
 phoenix.on('connected', () => {
     console.log('phoenix connected');
