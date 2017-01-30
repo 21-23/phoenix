@@ -41,6 +41,7 @@ function createConnection(Client, uri, timeout, callback) {
 }
 
 function clearClient(client) {
+    client.close();
     client.onclose = null;
     client.onerror = null;
     client.onmessage = null;
@@ -99,6 +100,7 @@ module.exports = function (Client, options) {
 
                 return false;
             }
+
             client.send(message, (error) => {
                 if (error) {
                     console.log('[phoenix]', 'Message send error; Reborn...');
@@ -107,6 +109,8 @@ module.exports = function (Client, options) {
                     reborn();
                 }
             });
+
+            return true;
         },
         destroy: () => {
             if (client) {
