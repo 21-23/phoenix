@@ -41,10 +41,10 @@ function createConnection(Client, uri, timeout, callback) {
 }
 
 function clearClient(client) {
-    client.close();
     client.onclose = null;
     client.onerror = null;
     client.onmessage = null;
+    client.close();
 }
 
 function listenToClient(client, emitter, reborn) {
