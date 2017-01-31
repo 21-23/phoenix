@@ -1,33 +1,26 @@
 // TODO: think about EventEmitter as a dependency for better in-browser usage
 const EventEmitter = require('events');
 
-function onConnectFail(socket, callback) {
+function onConnectFail(socket) {
     socket.onopen = null;
     socket.onerror = null;
-    callback(null);
 }
 
-function connect(Client, uri, timeout, callback) {
+function connect(Client, uri, callback) {
     let socket = new Client(uri);
 
-    const timeoutId = setTimeout(() => {
-        onConnectFail(socket, callback);
-        socket = null;
-    }, timeout);
-
     socket.onopen = () => {
-        clearTimeout(timeoutId);
         callback(socket);
     };
     socket.onerror = () => {
-        clearTimeout(timeoutId);
-        onConnectFail(socket, callback);
+        onConnectFail(socket);
         socket = null;
+        callback(socket);
     };
 }
 
 function createConnection(Client, uri, timeout, callback) {
-    connect(Client, uri, timeout, (socket) => {
+    connect(Client, uri, (socket) => {
         if (socket) {
             console.log('[phoenix]', 'Client created');
             return callback(socket);
