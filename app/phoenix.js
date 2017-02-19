@@ -1,6 +1,10 @@
 // TODO: think about EventEmitter as a dependency for better in-browser usage
 const EventEmitter = require('events');
 
+const CODES = {
+    STOP: 4500
+};
+
 function onConnectFail(socket) {
     socket.onopen = null;
     socket.onerror = null;
@@ -41,10 +45,15 @@ function clearClient(client) {
 }
 
 function listenToClient(client, emitter, reborn) {
-    client.onclose = () => {
-        console.warn('[phoenix]', 'Connection closed; Reborn...');
+    client.onclose = ({ code }) => {
         clearClient(client);
         emitter.emit('disconnected');
+
+        if (code === CODES.STOP) {
+            return console.warn('[phoenix]', 'Connection closed with STOP code; Do not reconnect');
+        }
+
+        console.warn('[phoenix]', 'Connection closed; Reborn...');
         reborn();
     };
     client.onerror = () => {
