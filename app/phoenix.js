@@ -1,9 +1,50 @@
-// TODO: think about EventEmitter as a dependency for better in-browser usage
-const EventEmitter = require('events');
+const events = new Map();
 
 const CODES = {
     STOP: 4500
 };
+
+// emit is far not generic as there's no need to be generic
+// it should be fast and stable
+function emit(eventName, message) {
+    const handlers = events.get(eventName);
+
+    if (!handlers) {
+        return;
+    }
+
+    handlers.forEach((handler) => {
+        handler(message);
+    });
+}
+
+function removeAllListeners(eventName) {
+    if (!eventName) {
+        events.clear();
+    }
+
+    events.delete(eventName);
+}
+
+function removeListener(eventName, handler) {
+    const handlers = events.get(eventName);
+
+    if (!handlers) {
+        return;
+    }
+
+    handlers.delete(handler);
+}
+
+function addListener(eventName, handler) {
+    let handlers = events.get(eventName);
+
+    if (!handlers) {
+        events.set(eventName, handlers = new Set());
+    }
+
+    handlers.add(handler);
+}
 
 function onConnectFail(socket) {
     socket.onopen = null;
@@ -44,10 +85,10 @@ function clearClient(client) {
     client.close();
 }
 
-function listenToClient(client, emitter, reborn) {
+function listenToClient(client, reborn) {
     client.onclose = ({ code }) => {
         clearClient(client);
-        emitter.emit('disconnected');
+        emit('disconnected');
 
         if (code === CODES.STOP) {
             return console.warn('[phoenix]', 'Connection closed with STOP code; Do not reconnect');
@@ -59,11 +100,11 @@ function listenToClient(client, emitter, reborn) {
     client.onerror = () => {
         console.warn('[phoenix]', 'Connection error; Reborn...');
         clearClient(client);
-        emitter.emit('disconnected');
+        emit('disconnected');
         reborn();
     };
     client.onmessage = (message) => {
-        emitter.emit('message', message);
+        emit('message', message);
     };
 }
 
@@ -73,7 +114,6 @@ module.exports = function (Client, options) {
     }
 
     const timeout = options.timeout || 0;
-    let emitter = new EventEmitter();
     let client = null;
     let state = 'disconnected';
 
@@ -82,9 +122,9 @@ module.exports = function (Client, options) {
         state = 'connecting';
         createConnection(Client, options.uri, timeout, (socket) => {
             client = socket;
-            listenToClient(client, emitter, reborn);
+            listenToClient(client, reborn);
             state = 'connected';
-            emitter.emit('connected');
+            emit('connected');
         });
     }
 
@@ -107,7 +147,7 @@ module.exports = function (Client, options) {
                 if (error) {
                     console.log('[phoenix]', 'Message send error; Reborn...');
                     clearClient(client);
-                    emitter.emit('disconnected');
+                    emit('disconnected');
                     reborn();
                 }
             });
@@ -119,21 +159,19 @@ module.exports = function (Client, options) {
                 clearClient(client);
                 client = null;
             }
-            if (emitter) {
-                emitter.removeAllListeners();
-                emitter = null;
-            }
+
+            removeAllListeners();
         },
         on: (eventName, listener) => {
-            emitter.addListener(eventName, listener);
+            addListener(eventName, listener);
 
             return phoenix;
         },
         off: (eventName, listener) => {
             if (listener) {
-                emitter.removeListener(eventName, listener);
+                removeListener(eventName, listener);
             } else {
-                emitter.removeAllListeners(eventName);
+                removeAllListeners(eventName);
             }
 
             return phoenix;

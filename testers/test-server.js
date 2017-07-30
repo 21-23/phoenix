@@ -11,8 +11,8 @@ wss.on('connection', (ws) => {
         const now = Date.now();
         console.log('send', now);
         ws.send('message from server::' + now);
-        setTimeout(sendRandomMessage, Math.random() * 5000);
+        setTimeout(sendRandomMessage, Math.random() * 3000);
     }
 
-    setTimeout(sendRandomMessage, Math.random() * 5000);
+    setTimeout(sendRandomMessage, Math.random() * 3000);
 });

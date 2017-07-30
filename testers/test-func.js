@@ -10,8 +10,25 @@ phoenix.on('connected', () => {
     console.log('phoenix disconnected');
 }).on('message', (message) => {
     console.log('phoenix message', message);
-});
+}).on('message', onMessage);
+
+setTimeout(() => {
+    console.log('Remove onMessage');
+    phoenix.off('message', onMessage);
+}, 5000);
+setTimeout(() => {
+    console.log('Remove all message listeners');
+    phoenix.off('message');
+}, 8000);
+setTimeout(() => {
+    console.log('Remove all listeners');
+    phoenix.off();
+}, 10000);
+
+function onMessage(message) {
+    console.log('onMessage', message);
+}
 
 setInterval(() => {
     phoenix.send('Message from client');
-}, 100);
+}, 1000);
