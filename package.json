@@ -1,6 +1,6 @@
 {
   "name": "phoenix",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Stable connect to ws server",
   "main": "app/phoenix.js",
   "scripts": {
