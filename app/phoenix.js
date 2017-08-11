@@ -68,13 +68,14 @@ function createConnection(Client, uri, timeout, callback) {
     connect(Client, uri, (socket) => {
         if (socket) {
             console.log('[phoenix]', 'Client created');
-            return callback(socket);
+            return callback(null, socket);
         }
 
         console.warn('[phoenix]', 'Can not create a connection, retry...');
-        setTimeout(() => {
+        const timerId = setTimeout(() => {
             createConnection(Client, uri, timeout, callback);
         }, timeout);
+        callback(timerId);
     });
 }
 
@@ -114,13 +115,18 @@ module.exports = function (Client, options) {
     }
 
     const timeout = options.timeout || 0;
+    let timer = null;
     let client = null;
     let state = 'disconnected';
 
     function reborn() {
         client = null;
         state = 'connecting';
-        createConnection(Client, options.uri, timeout, (socket) => {
+        createConnection(Client, options.uri, timeout, (reconnectTimer, socket) => {
+            if (reconnectTimer) {
+                timer = reconnectTimer;
+                return;
+            }
             client = socket;
             listenToClient(client, reborn);
             state = 'connected';
@@ -158,6 +164,9 @@ module.exports = function (Client, options) {
             if (client) {
                 clearClient(client);
                 client = null;
+            }
+            if (timer) {
+                clearTimeout(timer);
             }
 
             removeAllListeners();
