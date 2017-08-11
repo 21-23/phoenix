@@ -3,6 +3,16 @@ const events = new Map();
 const CODES = {
     STOP: 4500
 };
+const STATES = {
+    CONNECTING: 'connecting',
+    CONNECTED: 'connected',
+    DISCONNECTED: 'disconnected',
+};
+const EVENTS = {
+    CONNECTED: 'connected',
+    DISCONNECTED: 'disconnected',
+    MESSAGE: 'message',
+};
 
 // emit is far not generic as there's no need to be generic
 // it should be fast and stable
@@ -89,7 +99,7 @@ function clearClient(client) {
 function listenToClient(client, reborn) {
     client.onclose = ({ code }) => {
         clearClient(client);
-        emit('disconnected');
+        emit(EVENTS.DISCONNECTED);
 
         if (code === CODES.STOP) {
             return console.warn('[phoenix]', 'Connection closed with STOP code; Do not reconnect');
@@ -101,11 +111,11 @@ function listenToClient(client, reborn) {
     client.onerror = () => {
         console.warn('[phoenix]', 'Connection error; Reborn...');
         clearClient(client);
-        emit('disconnected');
+        emit(EVENTS.DISCONNECTED);
         reborn();
     };
     client.onmessage = (message) => {
-        emit('message', message);
+        emit(EVENTS.MESSAGE, message);
     };
 }
 
@@ -117,11 +127,11 @@ module.exports = function (Client, options) {
     const timeout = options.timeout || 0;
     let timer = null;
     let client = null;
-    let state = 'disconnected';
+    let state = STATES.DISCONNECTED;
 
     function reborn() {
         client = null;
-        state = 'connecting';
+        state = STATES.CONNECTING;
         createConnection(Client, options.uri, timeout, (reconnectTimer, socket) => {
             if (reconnectTimer) {
                 timer = reconnectTimer;
@@ -129,8 +139,8 @@ module.exports = function (Client, options) {
             }
             client = socket;
             listenToClient(client, reborn);
-            state = 'connected';
-            emit('connected');
+            state = STATES.CONNECTED;
+            emit(EVENTS.CONNECTED);
         });
     }
 
@@ -139,7 +149,7 @@ module.exports = function (Client, options) {
     const phoenix = {
         send: (message) => {
             if (!client) {
-                if (state !== 'connecting') {
+                if (state !== STATES.CONNECTING) {
                     console.warn('[phoenix]', 'No client; Reborn...');
                     reborn();
                 } else {
@@ -153,7 +163,7 @@ module.exports = function (Client, options) {
                 if (error) {
                     console.log('[phoenix]', 'Message send error; Reborn...');
                     clearClient(client);
-                    emit('disconnected');
+                    emit(EVENTS.DISCONNECTED);
                     reborn();
                 }
             });
