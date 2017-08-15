@@ -5,7 +5,7 @@ const sinon = require('sinon');
 
 const createPhoenix = require('./phoenix');
 
-function getConnectableSocket(attempts, send, autoClose, autoError, autoMessage) {
+function getConnectableSocket(attempts, ctorSpy, send, close, autoClose, autoError, autoMessage) {
     let attempt = 0;
 
     function ConnectableSocket(uri) {
@@ -14,10 +14,14 @@ function getConnectableSocket(attempts, send, autoClose, autoError, autoMessage)
         this.onclose = null;
         this.onmessage = null;
 
+        if (typeof ctorSpy === 'function') {
+            ctorSpy(uri);
+        }
+
         this.send = send || ((message, callback) => {
             return callback();
         });
-        this.close = () => { };
+        this.close = close || (() => { });
 
         setTimeout(() => {
             if (attempt < attempts) {
@@ -28,17 +32,23 @@ function getConnectableSocket(attempts, send, autoClose, autoError, autoMessage)
 
                 if (autoClose) {
                     setTimeout(() => {
-                        this.onclose({ code: autoClose.code });
+                        if (typeof this.onclose === 'function') {
+                            this.onclose({ code: autoClose.code });
+                        }
                     }, autoClose.timeout);
                 }
                 if (autoError) {
                     setTimeout(() => {
-                        this.onclose(autoError.error);
+                        if (typeof this.onerror === 'function') {
+                            this.onerror(autoError.error);
+                        }
                     }, autoError.timeout);
                 }
                 if (autoMessage) {
                     setTimeout(() => {
-                        this.onmessage(autoMessage.message);
+                        if (typeof this.onmessage === 'function') {
+                            this.onmessage(autoMessage.message);
+                        }
                     }, autoMessage.timeout);
                 }
             }
@@ -71,6 +81,86 @@ describe('phoenix', () => {
             assert.throws(() => {
                 createPhoenix('client', { uri: 'ws://valid.uri/' });
             });
+        });
+    });
+
+    describe('destroy', () => {
+        let clock;
+        let phoenix;
+
+        beforeEach(() => {
+            clock = sinon.useFakeTimers(1);
+        });
+
+        afterEach(() => {
+            clock.restore();
+            clock = null;
+
+            if (phoenix) {
+                phoenix.destroy();
+            }
+        });
+
+        it('should not fail if client is not created yet', () => {
+            phoenix = createPhoenix(getConnectableSocket(Infinity), { uri: 'ws://valid.uri/', timeout: 100 });
+
+            clock.tick(50);
+
+            assert.doesNotThrow(() => {
+                phoenix.destroy();
+            });
+        });
+
+        it('should not fail if called multiple times', () => {
+            phoenix = createPhoenix(getConnectableSocket(0), { uri: 'ws://valid.uri/', timeout: 10 });
+
+            clock.tick(50);
+            phoenix.destroy();
+
+            assert.doesNotThrow(() => {
+                phoenix.destroy();
+            });
+        });
+
+        it('should close already opened connection', () => {
+            const close = sinon.spy();
+            phoenix = createPhoenix(getConnectableSocket(0, null, null, close), { uri: 'ws://valid.uri/', timeout: 10 });
+
+            clock.tick(50);
+            phoenix.destroy();
+
+            assert.ok(close.called);
+        });
+
+        it('should stop re-connect procedure', () => {
+            const ctor = sinon.spy();
+            phoenix = createPhoenix(getConnectableSocket(Infinity, ctor), { uri: 'ws://valid.uri/', timeout: 10 });
+
+            clock.tick(50);
+            assert.ok(ctor.called);
+            ctor.reset();
+
+            phoenix.destroy();
+            clock.tick(50);
+            assert.ok(!ctor.called);
+        });
+
+        it('should remove listeners', () => {
+            const onMessageSpy = sinon.spy();
+            const onDisconnectedSpy = sinon.spy();
+            phoenix = createPhoenix(getConnectableSocket(0, null, null, null, null, { timeout: 7, error: 'error' }, { timeout: 5, message: 'msg' }), { uri: 'ws://valid.uri/', timeout: 100 });
+
+            phoenix.on('message', onMessageSpy);
+            phoenix.on('disconnected', onDisconnectedSpy);
+
+            clock.tick(13); // 10 ticks for connection
+
+            phoenix.destroy();
+
+            clock.tick(100); // let message and error come
+
+            assert.ok(!onMessageSpy.called);
+            assert.ok(!onDisconnectedSpy.called);
         });
     });
 
@@ -148,7 +238,7 @@ describe('phoenix', () => {
             });
 
             it('should be emitted if there is an error in sending message', (done) => {
-                phoenix = createPhoenix(getConnectableSocket(0, (msg, cb) => { cb('error'); }), { uri: 'ws://valid.uri/', timeout: 100 });
+                phoenix = createPhoenix(getConnectableSocket(0, null, (msg, cb) => { cb('error'); }), { uri: 'ws://valid.uri/', timeout: 100 });
 
                 phoenix.on('connected', () => {
                     phoenix.send('Custom message');
@@ -161,7 +251,7 @@ describe('phoenix', () => {
             });
 
             it('should be emitted if socket is closed', (done) => {
-                phoenix = createPhoenix(getConnectableSocket(0, null, { code: 4100, timeout: 10 }), { uri: 'ws://valid.uri/', timeout: 100 });
+                phoenix = createPhoenix(getConnectableSocket(0, null, null, null, { code: 4100, timeout: 10 }), { uri: 'ws://valid.uri/', timeout: 100 });
 
                 phoenix.on('disconnected', () => {
                     assert.ok(true);
@@ -172,7 +262,7 @@ describe('phoenix', () => {
             });
 
             it('should be emitted in case of error', (done) => {
-                phoenix = createPhoenix(getConnectableSocket(0, null, null, { error: 'error', timeout: 10 }), { uri: 'ws://valid.uri/', timeout: 100 });
+                phoenix = createPhoenix(getConnectableSocket(0, null, null, null, null, { error: 'error', timeout: 10 }), { uri: 'ws://valid.uri/', timeout: 100 });
 
                 phoenix.on('disconnected', () => {
                     assert.ok(true);
@@ -201,7 +291,7 @@ describe('phoenix', () => {
             });
 
             it('should be emitted as a message reaction', (done) => {
-                phoenix = createPhoenix(getConnectableSocket(0, null, null, null, { message: 'msg', timeout: 10 }), { uri: 'ws://valid.uri/', timeout: 100 });
+                phoenix = createPhoenix(getConnectableSocket(0, null, null, null, null, null, { message: 'msg', timeout: 10 }), { uri: 'ws://valid.uri/', timeout: 100 });
 
                 phoenix.on('message', () => {
                     assert.ok(true);
@@ -212,7 +302,7 @@ describe('phoenix', () => {
             });
             it('should have a correct payload', (done) => {
                 const message = 'test-msg';
-                phoenix = createPhoenix(getConnectableSocket(0, null, null, null, { message, timeout: 10 }), { uri: 'ws://valid.uri/', timeout: 100 });
+                phoenix = createPhoenix(getConnectableSocket(0, null, null, null, null, null, { message, timeout: 10 }), { uri: 'ws://valid.uri/', timeout: 100 });
 
                 phoenix.on('message', (msg) => {
                     assert.ok(true);
@@ -244,7 +334,7 @@ describe('phoenix', () => {
 
         it('should be interrupted by STOP code', () => {
             const onConnectedSpy = sinon.spy();
-            phoenix = createPhoenix(getConnectableSocket(0, null, { code: 4500, timeout: 10 }), { uri: 'ws://valid.uri/', timeout: 10 });
+            phoenix = createPhoenix(getConnectableSocket(0, null, null, null, { code: 4500, timeout: 10 }), { uri: 'ws://valid.uri/', timeout: 10 });
 
             phoenix.on('connected', onConnectedSpy);
 
