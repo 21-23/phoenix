@@ -7,7 +7,8 @@
     "test": "node ./node_modules/mocha/bin/mocha \"./app/**/*.spec.js\"",
     "test:func": "node ./testers/test-func.js",
     "lint": "eslint ./app",
-    "precommit": "lint-staged"
+    "precommit": "lint-staged",
+    "prepush": "npm t"
   },
   "repository": "git@github.com:21-23/phoenix.git",
   "author": "21-23",
