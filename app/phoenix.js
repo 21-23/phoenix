@@ -1,4 +1,4 @@
-const events = new Map();
+const createEventer = require('./eventer');
 
 const CODES = {
     STOP: 4500
@@ -13,48 +13,6 @@ const EVENTS = {
     DISCONNECTED: 'disconnected',
     MESSAGE: 'message',
 };
-
-// emit is far not generic as there's no need to be generic
-// it should be fast and stable
-function emit(eventName, message) {
-    const handlers = events.get(eventName);
-
-    if (!handlers) {
-        return;
-    }
-
-    handlers.forEach((handler) => {
-        handler(message);
-    });
-}
-
-function removeAllListeners(eventName) {
-    if (!eventName) {
-        events.clear();
-    }
-
-    events.delete(eventName);
-}
-
-function removeListener(eventName, handler) {
-    const handlers = events.get(eventName);
-
-    if (!handlers) {
-        return;
-    }
-
-    handlers.delete(handler);
-}
-
-function addListener(eventName, handler) {
-    let handlers = events.get(eventName);
-
-    if (!handlers) {
-        events.set(eventName, handlers = new Set());
-    }
-
-    handlers.add(handler);
-}
 
 function onConnectFail(socket) {
     socket.onopen = null;
@@ -96,10 +54,10 @@ function clearClient(client) {
     client.close();
 }
 
-function listenToClient(client, reborn) {
+function listenToClient(client, reborn, eventer) {
     client.onclose = ({ code }) => {
         clearClient(client);
-        emit(EVENTS.DISCONNECTED);
+        eventer.emit(EVENTS.DISCONNECTED);
 
         if (code === CODES.STOP) {
             return console.warn('[phoenix]', 'Connection closed with STOP code; Do not reconnect');
@@ -111,11 +69,11 @@ function listenToClient(client, reborn) {
     client.onerror = () => {
         console.warn('[phoenix]', 'Connection error; Reborn...');
         clearClient(client);
-        emit(EVENTS.DISCONNECTED);
+        eventer.emit(EVENTS.DISCONNECTED);
         reborn();
     };
     client.onmessage = (message) => {
-        emit(EVENTS.MESSAGE, message);
+        eventer.emit(EVENTS.MESSAGE, message);
     };
 }
 
@@ -125,6 +83,7 @@ module.exports = function (Client, options) {
     }
 
     const timeout = options.timeout || 0;
+    const eventer = createEventer();
     let timer = null;
     let client = null;
     let state = STATES.DISCONNECTED;
@@ -138,9 +97,9 @@ module.exports = function (Client, options) {
                 return;
             }
             client = socket;
-            listenToClient(client, reborn);
+            listenToClient(client, reborn, eventer);
             state = STATES.CONNECTED;
-            emit(EVENTS.CONNECTED);
+            eventer.emit(EVENTS.CONNECTED);
         });
     }
 
@@ -163,7 +122,7 @@ module.exports = function (Client, options) {
                 if (error) {
                     console.log('[phoenix]', 'Message send error; Reborn...');
                     clearClient(client);
-                    emit(EVENTS.DISCONNECTED);
+                    eventer.emit(EVENTS.DISCONNECTED);
                     reborn();
                 }
             });
@@ -179,18 +138,18 @@ module.exports = function (Client, options) {
                 clearTimeout(timer);
             }
 
-            removeAllListeners();
+            eventer.removeAllListeners();
         },
         on: (eventName, listener) => {
-            addListener(eventName, listener);
+            eventer.addListener(eventName, listener);
 
             return phoenix;
         },
         off: (eventName, listener) => {
             if (listener) {
-                removeListener(eventName, listener);
+                eventer.removeListener(eventName, listener);
             } else {
-                removeAllListeners(eventName);
+                eventer.removeAllListeners(eventName);
             }
 
             return phoenix;

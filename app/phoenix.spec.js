@@ -82,6 +82,27 @@ describe('phoenix', () => {
                 createPhoenix('client', { uri: 'ws://valid.uri/' });
             });
         });
+        it('should support multiple instances at the same time in the same scope', () => {
+            const clock = sinon.useFakeTimers(1);
+            const phoenix1 = createPhoenix(getConnectableSocket(0), { uri: 'ws://valid.uri/' });
+            const phoenix2 = createPhoenix(getConnectableSocket(Infinity), { uri: 'ws://valid.uri/', timeout: 100 });
+
+            phoenix1.on('connected', () => {
+                assert.ok(true);
+            }).on('disconnected', () => {
+                assert.ok(false, 'Event "disconnected" should not be emitted for successful connection');
+            });
+
+            phoenix2.on('connected', () => {
+                assert.ok(false, 'Event "connected" should not be emitted for failed connection');
+            });
+
+            clock.tick(50);
+
+            phoenix1.destroy();
+            phoenix2.destroy();
+            clock.restore();
+        });
     });
 
     describe('destroy', () => {
