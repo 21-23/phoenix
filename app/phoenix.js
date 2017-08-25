@@ -1,5 +1,10 @@
 const createEventer = require('./eventer');
 
+const loggerStub = {
+    warn: () => {},
+    log: () => {},
+};
+
 const CODES = {
     STOP: 4500
 };
@@ -32,16 +37,16 @@ function connect(Client, uri, callback) {
     };
 }
 
-function createConnection(Client, uri, timeout, callback) {
+function createConnection(Client, uri, timeout, logger, callback) {
     connect(Client, uri, (socket) => {
         if (socket) {
-            console.log('[phoenix]', 'Client created');
+            logger.log('Client created');
             return callback(null, socket);
         }
 
-        console.warn('[phoenix]', 'Can not create a connection, retry...');
+        logger.warn('Can not create a connection, retry...');
         const timerId = setTimeout(() => {
-            createConnection(Client, uri, timeout, callback);
+            createConnection(Client, uri, timeout, logger, callback);
         }, timeout);
         callback(timerId);
     });
@@ -54,20 +59,20 @@ function clearClient(client) {
     client.close();
 }
 
-function listenToClient(client, reborn, eventer) {
+function listenToClient(client, reborn, eventer, logger) {
     client.onclose = ({ code }) => {
         clearClient(client);
         eventer.emit(EVENTS.DISCONNECTED);
 
         if (code === CODES.STOP) {
-            return console.warn('[phoenix]', 'Connection closed with STOP code; Do not reconnect');
+            return logger.warn('Connection closed with STOP code; Do not reconnect');
         }
 
-        console.warn('[phoenix]', 'Connection closed; Reborn...');
+        logger.warn('Connection closed; Reborn...');
         reborn();
     };
     client.onerror = () => {
-        console.warn('[phoenix]', 'Connection error; Reborn...');
+        logger.warn('Connection error; Reborn...');
         clearClient(client);
         eventer.emit(EVENTS.DISCONNECTED);
         reborn();
@@ -83,6 +88,7 @@ module.exports = function (Client, options) {
     }
 
     const timeout = options.timeout || 0;
+    const logger = options.logger || console || loggerStub;
     const eventer = createEventer();
     let timer = null;
     let client = null;
@@ -91,13 +97,13 @@ module.exports = function (Client, options) {
     function reborn() {
         client = null;
         state = STATES.CONNECTING;
-        createConnection(Client, options.uri, timeout, (reconnectTimer, socket) => {
+        createConnection(Client, options.uri, timeout, logger, (reconnectTimer, socket) => {
             if (reconnectTimer) {
                 timer = reconnectTimer;
                 return;
             }
             client = socket;
-            listenToClient(client, reborn, eventer);
+            listenToClient(client, reborn, eventer, logger);
             state = STATES.CONNECTED;
             eventer.emit(EVENTS.CONNECTED);
         });
@@ -109,10 +115,10 @@ module.exports = function (Client, options) {
         send: (message) => {
             if (!client) {
                 if (state !== STATES.CONNECTING) {
-                    console.warn('[phoenix]', 'No client; Reborn...');
+                    logger.warn('No client; Reborn...');
                     reborn();
                 } else {
-                    console.warn('[phoenix]', 'No client; Resurrecting...');
+                    logger.warn('No client; Resurrecting...');
                 }
 
                 return false;
@@ -120,7 +126,7 @@ module.exports = function (Client, options) {
 
             client.send(message, (error) => {
                 if (error) {
-                    console.log('[phoenix]', 'Message send error; Reborn...');
+                    logger.log('Message send error; Reborn...');
                     clearClient(client);
                     eventer.emit(EVENTS.DISCONNECTED);
                     reborn();

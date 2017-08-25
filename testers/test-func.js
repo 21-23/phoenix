@@ -2,7 +2,14 @@ const WebSocketClient = require('uws'); // eslint-disable-line import/no-extrane
 
 const createPhoenix = require('../app/phoenix');
 
-const phoenix = createPhoenix(WebSocketClient, { uri: 'ws://localhost:8090/', timeout: 3000 });
+const phoenix = createPhoenix(WebSocketClient, {
+    uri: 'wss://echo.websocket.org',
+    timeout: 3000,
+    logger: {
+        warn: console.warn.bind(console, '[test-func]'),
+        log: console.log.bind(console, '[test-func]')
+    }
+});
 
 phoenix.on('connected', () => {
     console.log('phoenix connected');
