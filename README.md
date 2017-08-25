@@ -18,9 +18,8 @@ phoenix
     .on('disconnected', () => {
         // connected
     })
-    .on('message', (incomingMessage) => {
-        const { message } = parseMessage(incomingMessage.data);
-        // handle message
+    .on('message', ({ data }) => {
+        // data is the sent message
     });
 ```
 ### browser
@@ -39,9 +38,8 @@ phoenix
     .on('disconnected', () => {
         // connected
     })
-    .on('message', (incomingMessage) => {
-        const { message } = parseMessage(incomingMessage.data);
-        // handle message
+    .on('message', ({ data }) => {
+        // data is the sent message
     });
 ```
 
@@ -57,6 +55,8 @@ Arguments:
   * `uri` - remote WS server full url (e.g. wss://echo.websocket.org). Required.
   * `timeout` - time span between reconnects. Optional. Default to `0`.
   * `logger` - object that implements log interface (actually, 2 methods: `log` and `warn`). Optional. If not passed - fallbacks to `console`. If there's no console - would not log anything.
+
+To stop reconnect from the server it shoud close the WS connection with code `4500`.
 
 ### phoenix.destroy();
 Has no arguments. Drops the connection, removes all listeners, stops the reconnection if any active.
@@ -88,6 +88,6 @@ Emitted every time the connection is up.
 Emitted every time the connection is down.
 
 #### Event `'message'`
-`function onMessage(message) { }`
+`function onMessage({ data }) { }`
 Emitted when the client (phoenix) receives a message from server.
-* `message` - message from server
+* `data` - message from server
