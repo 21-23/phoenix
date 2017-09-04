@@ -54,7 +54,7 @@ Arguments:
 * `options`
   * `uri` - remote WS server full url (e.g. wss://echo.websocket.org). Required.
   * `timeout` - time span between reconnects. Optional. Default to `0`.
-  * `logger` - object that implements log interface (actually, 2 methods: `log` and `warn`). Optional. If not passed - fallbacks to `console`. If there's no console - would not log anything.
+  * `logger` - object that implements log interface (actually, 2 methods: `log` and `warn`). Optional. If not passed - fallbacks to `console`. If there's no console - would not log anything. To disable logging set to `null`.
 
 To stop reconnect from the server it shoud close the WS connection with code `4500`.
 

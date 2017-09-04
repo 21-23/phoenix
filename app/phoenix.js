@@ -88,11 +88,17 @@ module.exports = function (Client, options) {
     }
 
     const timeout = options.timeout || 0;
-    const logger = options.logger || console || loggerStub;
     const eventer = createEventer();
+    let logger = options.logger;
     let timer = null;
     let client = null;
     let state = STATES.DISCONNECTED;
+
+    if (logger === null) {
+        logger = loggerStub;
+    } else if (!logger) {
+        logger = console || loggerStub;
+    }
 
     function reborn() {
         client = null;
