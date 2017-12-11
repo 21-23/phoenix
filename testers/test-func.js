@@ -5,9 +5,10 @@ const createPhoenix = require('../app/phoenix');
 const phoenix = createPhoenix(WebSocketClient, {
     uri: 'wss://echo.websocket.org',
     timeout: 3000,
+    strategy: createPhoenix.strategies.powerOf2,
     logger: {
-        warn: console.warn.bind(console, '[test-func]'),
-        log: console.log.bind(console, '[test-func]')
+        warn: (...arg) => console.warn(Date.now(), ...arg),
+        log: (...arg) => console.log(Date.now(), ...arg),
     }
 });
 
@@ -36,6 +37,11 @@ function onMessage(message) {
     console.log('onMessage', message);
 }
 
-setInterval(() => {
+const intervalId = setInterval(() => {
     phoenix.send('Message from client');
 }, 1000);
+setTimeout(() => {
+    clearInterval(intervalId);
+    console.log('Destroy');
+    phoenix.destroy();
+}, 12000);
