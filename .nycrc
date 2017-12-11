@@ -1,0 +1,10 @@
+{
+    "reporter": [
+        "html",
+        "text"
+    ],
+    "exclude": [
+        "**/*.spec.js"
+    ],
+    "report-dir": "./test-coverage"
+}
