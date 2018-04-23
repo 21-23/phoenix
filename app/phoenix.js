@@ -1,4 +1,5 @@
 const createEventer = require('./eventer');
+const { createStrategy, strategies } = require('./strategies');
 
 const loggerStub = {
     warn: () => {},
@@ -37,7 +38,7 @@ function connect(Client, uri, callback) {
     };
 }
 
-function createConnection(Client, uri, timeout, logger, callback) {
+function createConnection(Client, uri, strategy, logger, callback) {
     connect(Client, uri, (socket) => {
         if (socket) {
             logger.log('Client created');
@@ -46,8 +47,8 @@ function createConnection(Client, uri, timeout, logger, callback) {
 
         logger.warn('Can not create a connection, retry...');
         const timerId = setTimeout(() => {
-            createConnection(Client, uri, timeout, logger, callback);
-        }, timeout);
+            createConnection(Client, uri, strategy, logger, callback);
+        }, strategy());
         callback(timerId);
     });
 }
@@ -89,6 +90,7 @@ module.exports = function (Client, options) {
 
     const timeout = options.timeout || 0;
     const eventer = createEventer();
+    const strategy = createStrategy(options.strategy, timeout);
     let logger = options.logger;
     let timer = null;
     let client = null;
@@ -103,7 +105,7 @@ module.exports = function (Client, options) {
     function reborn() {
         client = null;
         state = STATES.CONNECTING;
-        createConnection(Client, options.uri, timeout, logger, (reconnectTimer, socket) => {
+        createConnection(Client, options.uri, strategy, logger, (reconnectTimer, socket) => {
             if (reconnectTimer) {
                 timer = reconnectTimer;
                 return;
@@ -170,3 +172,5 @@ module.exports = function (Client, options) {
 
     return phoenix;
 };
+
+module.exports.strategies = strategies;
