@@ -6,6 +6,7 @@
   "scripts": {
     "test": "node ./node_modules/mocha/bin/mocha \"./app/**/*.spec.js\"",
     "test:func": "node ./testers/test-func.js",
+    "test:coverage": "nyc npm t",
     "lint": "eslint ./app",
     "precommit": "lint-staged",
     "prepush": "npm t"
@@ -21,6 +22,7 @@
     "husky": "^0.13.1",
     "lint-staged": "^3.2.8",
     "mocha": "^3.5.0",
+    "nyc": "11.3.0",
     "sinon": "^3.0.0",
     "uws": "^0.14.1"
   }
