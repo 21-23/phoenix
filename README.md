@@ -8,7 +8,8 @@ const createPhoenix = require('phoenix');
 const phoenix = createPhoenix(WebSocketClient, {
     uri: 'ws://127.0.0.1/ws',
     timeout: 500,
-    logger: console
+    logger: console,
+    strategy: createPhoenix.strategies.powerOf2,
 });
 
 phoenix
@@ -28,7 +29,8 @@ import createPhoenix from 'phoenix';
 const phoenix = createPhoenix(WebSocket, {
     uri: 'ws://127.0.0.1/ws',
     timeout: 500,
-    logger: console
+    logger: console,
+    strategy: createPhoenix.strategies.fibonacci,
 });
 
 phoenix
@@ -53,8 +55,9 @@ Arguments:
 * `WSClient` - the class that would be used for connection creation. Should be [WebSocket](https://developer.mozilla.org/en/docs/Web/API/WebSocket) or any other implementation with the same API. Required.
 * `options`
   * `uri` - remote WS server full url (e.g. wss://echo.websocket.org). Required.
-  * `timeout` - time span between reconnects. Optional. Default to `0`.
+  * `timeout` - time span between reconnects. Optional. Default to `0`. Depends on selected `strategy`.
   * `logger` - object that implements log interface (actually, 2 methods: `log` and `warn`). Optional. If not passed - fallbacks to `console`. If there's no console - would not log anything. To disable logging set to `null`.
+  * `strategy` - reconnect strategy. Optional. Default to `const`. See full list of strategies below.
 
 To stop reconnect from the server it shoud close the WS connection with code `4500`.
 
@@ -91,3 +94,19 @@ Emitted every time the connection is down.
 `function onMessage({ data }) { }`
 Emitted when the client (phoenix) receives a message from server.
 * `data` - message from server
+
+## Reconnect strategies
+### const
+The default one. Takes the `timeout` option as a timspan between reconnects. Constant over time. E.g. `timeout = 67`, then sequence is `67, 67, 67, 67, ...`.
+
+### fibonacci
+`timeout` option is ignored. Reconnect is scheduled based on fibonacci sequence in milliseconds. `0, 1, 1, 2, 3, 5, 8, 13, ...`.
+
+### linear
+Increases the timeout by `1ms` on every reconnect starting with `timeout` option. E.g. `timeout = 134`, then sequence is `134, 135, 136, 137, ...`.
+
+### powerOf2
+Takes `1ms` as a start point and multiplies by `2` on every reconnect. `1, 2, 4, 8, 16, ...`.
+
+### random
+Reconnect timeout is a random value in range `[0, timeout)`.
