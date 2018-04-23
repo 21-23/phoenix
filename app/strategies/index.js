@@ -9,7 +9,7 @@ const DEFAULT_STRATEGY = 'const';
 
 module.exports = {
     createStrategy(name, base) {
-        const make = STRATEGIES[name || DEFAULT_STRATEGY] || STRATEGIES[DEFAULT_STRATEGY];
+        const make = STRATEGIES[name] || STRATEGIES[DEFAULT_STRATEGY];
 
         return make(base);
     },
